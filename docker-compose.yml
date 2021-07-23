@@ -1,0 +1,81 @@
+version: '3.1'
+
+volumes:
+  pgsqldata:
+  pgsqlconf:
+  pgsqllog:
+  zabbixdata:
+  grafanadata:
+
+networks:
+  network-zabbix:
+    driver: bridge
+
+services:
+  wparaiso-pgsql:
+    container_name: wparaiso-pgsql
+    image: postgres:latest
+    networks:
+      - network-zabbix
+    volumes:
+      - pgsqldata:/var/lib/postgresql/data
+      - pgsqlconf:/etc/postgresql
+      - pgsqllog:/var/log/postgresql
+    environment:
+      POSTGRES_USER: wparaisousr
+      POSTGRES_PASSWORD: wparaisopwd
+      POSTGRES_DB: wparaiso-zabbixdb
+
+  wparaiso-zabbix-server:
+    container_name: wparaiso-zabbix-server
+    image: zabbix/zabbix-server-pgsql:latest
+    networks:
+      - network-zabbix
+    links:
+      - wparaiso-pgsql
+    volumes:
+      - zabbixdata:/usr/lib/zabbix
+    environment:
+      DB_SERVER_HOST: wparaiso-pgsql
+      POSTGRES_USER: wparaisousr
+      POSTGRES_PASSWORD: wparaisopwd
+      POSTGRES_DB: wparaiso-zabbixdb
+    depends_on:
+      - wparaiso-pgsql
+
+  wparaiso-zabbix-web:
+    container_name: wparaiso-zabbix-web
+    image: zabbix/zabbix-web-nginx-pgsql:latest
+    networks:
+      - network-zabbix
+    links:
+      - wparaiso-pgsql
+      - wparaiso-zabbix-server
+    ports:
+      - '80:8080'
+      - '443:8443'
+    environment:
+      ZBX_SERVER_HOST: wparaiso-zabbix-server
+      DB_SERVER_HOST: wparaiso-pgsql
+      POSTGRES_USER: wparaisousr
+      POSTGRES_PASSWORD: wparaisopwd
+      POSTGRES_DB: wparaiso-zabbixdb
+    depends_on:
+      - wparaiso-pgsql
+      - wparaiso-zabbix-server
+    
+  wparaiso-grafana:
+    container_name: wparaiso-grafana
+    image: grafana/grafana
+    networks:
+      - network-zabbix
+    links:
+      - wparaiso-pgsql
+      - wparaiso-zabbix-server
+    ports:
+      - '3000:3000'
+    volumes:
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - wparaiso-pgsql
+      - wparaiso-zabbix-server
