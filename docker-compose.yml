@@ -1,3 +1,5 @@
+#Docker-Compose criado por Wilson Paraiso
+#Mais conteúdo como esse, acesse: http://medium.com/wparaiso
 version: '3.1'
 
 volumes:
